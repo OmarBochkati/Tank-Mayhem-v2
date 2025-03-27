@@ -13,6 +13,7 @@ import { CollisionManager } from './CollisionManager';
 import { GameState } from '../types/GameState';
 import { EntityManager } from './EntityManager';
 import { AudioManager } from './AudioManager';
+import { registerDefaultModels } from '../utils/DefaultModels';
 
 interface GameOptions {
   canvas: HTMLCanvasElement;
@@ -27,6 +28,10 @@ export class Game {
   private clock: THREE.Clock;
   private physicsWorld: World;
   private isRunning: boolean = false;
+  
+  // Debug metrics
+  private fpsCounter: number[] = [];
+  private lastFrameTime: number = 0;
   
   // Managers
   private assetManager: AssetManager;
@@ -74,10 +79,12 @@ export class Game {
     
     // Initialize physics world with improved settings
     this.physicsWorld = new World();
-    this.physicsWorld.gravity.set(0, -9.82, 0);
-    this.physicsWorld.defaultContactMaterial.contactEquationStiffness = 1e7;
-    this.physicsWorld.defaultContactMaterial.contactEquationRelaxation = 3;
-    this.physicsWorld.solver.iterations = 10; // Increase solver iterations for better stability
+    this.physicsWorld.gravity.set(0, -9.82, 0); // Standard Earth gravity (Y is up/down)
+    this.physicsWorld.defaultContactMaterial.contactEquationStiffness = 1e7; // Reduced stiffness to prevent bouncing
+    this.physicsWorld.defaultContactMaterial.contactEquationRelaxation = 4; // Increased relaxation
+    this.physicsWorld.defaultContactMaterial.friction = 0.5; // Moderate friction
+    this.physicsWorld.defaultContactMaterial.restitution = 0.05; // Very low bounciness
+    this.physicsWorld.solver.iterations = 10; // Reduced iterations for better performance
     this.physicsWorld.broadphase.useBoundingBoxes = true; // Use bounding boxes for better performance
     
     // Initialize clock for delta time
@@ -116,16 +123,24 @@ export class Game {
     this.inputManager.on('fire', this.handleFireInput.bind(this));
     this.inputManager.on('toggleCamera', this.handleToggleCameraInput.bind(this));
     this.inputManager.on('toggleChat', this.handleToggleChatInput.bind(this));
+    this.inputManager.on('settingsChanged', this.handleInputSettingsChanged.bind(this));
     
     // UI events
     this.uiManager.on('chatMessage', this.handleChatMessage.bind(this));
+    this.uiManager.on('settingChanged', this.handleSettingChanged.bind(this));
     
     // Collision events
     this.collisionManager.on('tankHitGround', this.handleTankHitGround.bind(this));
+    
+    // Settings menu events
+    this.setupSettingsEvents();
   }
   
   public async start(): Promise<void> {
     if (this.isRunning) return;
+    
+    // Register default models in case asset loading fails
+    registerDefaultModels(this.assetManager);
     
     // Generate world
     await this.worldManager.generateWorld();
@@ -135,6 +150,9 @@ export class Game {
     
     // Create local player
     this.createLocalPlayer();
+    
+    // Initialize UI with current settings
+    this.uiManager.updateSettings(this.inputManager.getSettings());
     
     // Start game loop
     this.isRunning = true;
@@ -254,9 +272,21 @@ export class Game {
     
     requestAnimationFrame(this.animate.bind(this));
     
+    // Calculate frame time and FPS
+    const now = performance.now();
     const delta = this.clock.getDelta();
+    const frameTime = now - this.lastFrameTime;
+    this.lastFrameTime = now;
+    
+    // Update FPS counter (rolling average of last 60 frames)
+    this.fpsCounter.push(1000 / frameTime);
+    if (this.fpsCounter.length > 60) {
+      this.fpsCounter.shift();
+    }
+    
     this.update(delta);
     this.render();
+    this.updateDebugInfo();
   }
   
   private update(delta: number): void {
@@ -264,7 +294,8 @@ export class Game {
     const cappedDelta = Math.min(delta, 1/30);
     
     // Update physics with fixed timestep for stability
-    this.physicsWorld.step(1/60, cappedDelta, 3);
+    // Use more substeps for better stability
+    this.physicsWorld.step(1/60, cappedDelta, 10);
     
     // Update game time
     this.gameState.gameTime += delta;
@@ -304,6 +335,12 @@ export class Game {
         this.uiManager.hideReloadIndicator();
         this.uiManager.updateAmmo(playerTank.getAmmo(), playerTank.getMaxAmmo());
       }
+    
+      // Update minimap
+      this.uiManager.updateMiniMap(
+        { x: playerTank.getPosition().x, z: playerTank.getPosition().z },
+        this.getEntitiesForMinimap()
+      );
     }
     
     // Update all entities
@@ -332,6 +369,53 @@ export class Game {
   
   private render(): void {
     this.renderer.render(this.scene, this.cameraManager.getCamera());
+  }
+  
+  /**
+   * Collect and update debug information
+   */
+  private updateDebugInfo(): void {
+    if (!this.localPlayer) return;
+    
+    // Calculate average FPS
+    const avgFps = this.fpsCounter.reduce((sum, fps) => sum + fps, 0) / this.fpsCounter.length;
+    
+    // Get player tank
+    const playerTank = this.localPlayer.getTank();
+    const position = playerTank.getPosition();
+    const rotation = playerTank.getRotation();
+    const velocity = playerTank.getVelocity();
+    
+    // Get memory usage if available
+    let memory = 0;
+    if (window.performance && (performance as any).memory) {
+      memory = (performance as any).memory.usedJSHeapSize / (1024 * 1024);
+    }
+    
+    // Collect debug data
+    const debugData = {
+      // Performance metrics
+      fps: avgFps,
+      frameTime: 1000 / avgFps,
+      memory: memory,
+      
+      // Player info
+      position: position,
+      rotation: rotation,
+      velocity: velocity,
+      
+      // Scene info
+      drawCalls: this.renderer.info.render.calls,
+      triangles: this.renderer.info.render.triangles,
+      entities: this.entityManager.getEntityCount(),
+      
+      // Physics info
+      physicsBodies: this.physicsWorld.bodies.length,
+      physicsContacts: this.physicsWorld.contacts.length
+    };
+    
+    // Update UI
+    this.uiManager.updateDebugInfo(debugData);
   }
   
   // Event handlers
@@ -546,5 +630,92 @@ export class Game {
       username: this.localPlayer.getUsername(),
       message: message
     });
+  }
+  
+  private handleSettingChanged(data: any): void {
+    // Handle settings changes from UI
+    if (data.setting === 'invertMouseX') {
+      this.inputManager.updateSettings({ invertMouseX: data.value });
+    } else if (data.setting === 'invertMouseY') {
+      this.inputManager.updateSettings({ invertMouseY: data.value });
+    }
+  }
+  
+  private handleInputSettingsChanged(settings: any): void {
+    // Update UI when input settings change
+    this.uiManager.updateSettings(settings);
+    
+    // Update settings menu checkboxes
+    const invertXCheckbox = document.getElementById('invert-mouse-x') as HTMLInputElement;
+    const invertYCheckbox = document.getElementById('invert-mouse-y') as HTMLInputElement;
+    
+    if (invertXCheckbox && settings.invertMouseX !== undefined) {
+      invertXCheckbox.checked = settings.invertMouseX;
+    }
+    
+    if (invertYCheckbox && settings.invertMouseY !== undefined) {
+      invertYCheckbox.checked = settings.invertMouseY;
+    }
+  }
+  
+  /**
+   * Get entities for minimap display
+   */
+  private getEntitiesForMinimap(): any[] {
+    const entities: any[] = [];
+    
+    // Add other players
+    this.gameState.players.forEach(player => {
+      if (player !== this.localPlayer) {
+        entities.push({
+          type: 'player',
+          position: player.getTank().getPosition()
+        });
+      }
+    });
+    
+    // Add projectiles
+    this.gameState.projectiles.forEach(projectile => {
+      if (projectile.object3D) {
+        entities.push({
+          type: 'projectile',
+          position: projectile.object3D.position
+        });
+      }
+    });
+    
+    // Add world objects (could be added later)
+    
+    return entities;
+  }
+  
+  private setupSettingsEvents(): void {
+    // Get settings elements
+    const invertXCheckbox = document.getElementById('invert-mouse-x') as HTMLInputElement;
+    const invertYCheckbox = document.getElementById('invert-mouse-y') as HTMLInputElement;
+    const backButton = document.getElementById('back-from-settings');
+    
+    // Add event listeners
+    if (invertXCheckbox) {
+      invertXCheckbox.addEventListener('change', () => {
+        this.inputManager.updateSettings({ invertMouseX: invertXCheckbox.checked });
+      });
+    }
+    
+    if (invertYCheckbox) {
+      invertYCheckbox.addEventListener('change', () => {
+        this.inputManager.updateSettings({ invertMouseY: invertYCheckbox.checked });
+      });
+    }
+    
+    // Initialize checkboxes with current settings
+    const settings = this.inputManager.getSettings();
+    if (invertXCheckbox) {
+      invertXCheckbox.checked = settings.invertMouseX;
+    }
+    
+    if (invertYCheckbox) {
+      invertYCheckbox.checked = settings.invertMouseY;
+    }
   }
 }

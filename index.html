@@ -16,7 +16,7 @@
         <p class="loading-text">Loading...</p>
       </div>
     </div>
-    
+
     <div id="game-ui" class="hidden">
       <div class="hud">
         <div class="health-bar">
@@ -39,7 +39,7 @@
         <input type="text" class="chat-input" placeholder="Type message..." />
       </div>
     </div>
-    
+
     <div id="menu" class="active">
       <div class="menu-container">
         <h1>TANK MAYHEM</h1>
@@ -51,7 +51,7 @@
         </div>
       </div>
     </div>
-    
+
     <div id="customize-menu" class="hidden">
       <div class="customize-container">
         <h2>CUSTOMIZE YOUR TANK</h2>
@@ -73,7 +73,7 @@
         <button id="back-from-customize" class="menu-button">BACK</button>
       </div>
     </div>
-    
+
     <div id="settings-menu" class="hidden">
       <div class="settings-container">
         <h2>SETTINGS</h2>
@@ -101,11 +101,19 @@
               <option value="third-person">Third Person</option>
             </select>
           </div>
+          <div class="setting">
+            <label for="invert-mouse-x">Invert Mouse X-Axis</label>
+            <input type="checkbox" id="invert-mouse-x" checked="checked">
+          </div>
+          <div class="setting">
+            <label for="invert-mouse-y">Invert Mouse Y-Axis</label>
+            <input type="checkbox" id="invert-mouse-y" checked="checked">
+          </div>
         </div>
         <button id="back-from-settings" class="menu-button">BACK</button>
       </div>
     </div>
-    
+
     <div id="leaderboard-screen" class="hidden">
       <div class="leaderboard-container">
         <h2>GLOBAL LEADERBOARD</h2>
@@ -115,7 +123,7 @@
         <button id="back-from-leaderboard" class="menu-button">BACK</button>
       </div>
     </div>
-    
+
     <div id="game-over" class="hidden">
       <div class="game-over-container">
         <h2>GAME OVER</h2>
@@ -128,7 +136,7 @@
         <button id="main-menu-button" class="menu-button">MAIN MENU</button>
       </div>
     </div>
-    
+
     <canvas id="game-canvas"></canvas>
     <script type="module" src="/src/main.ts"></script>
   </body>

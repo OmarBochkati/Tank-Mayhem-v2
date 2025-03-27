@@ -69,8 +69,8 @@ export class AudioManager {
       // Start playback
       source.start(0);
       
-      // Store references
-      const id = `${name}_${Date.now()}`;
+      // Store references with unique ID to allow multiple instances of the same sound
+      const id = `${name}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       this.sounds.set(id, source);
       this.gainNodes.set(id, gainNode);
       
@@ -93,7 +93,10 @@ export class AudioManager {
     }
     
     const buffer = this.assetManager.getSound(name);
-    if (!buffer) return;
+    if (!buffer) {
+      console.warn(`Music not found: ${name}`);
+      return;
+    }
     
     try {
       // Stop any currently playing music

@@ -17,7 +17,7 @@ async function initGame() {
   // Create procedural textures instead of loading them
   await createProceduralTextures();
 
-  
+
   assetManager.registerSounds([
     { name: 'engine', path: '/assets/sounds/engine.mp3' },
     { name: 'shot', path: '/assets/sounds/shot.mp3' },
@@ -26,29 +26,29 @@ async function initGame() {
     { name: 'hit', path: '/assets/sounds/hit.mp3' },
     { name: 'music', path: '/assets/sounds/music.mp3' }
   ]);
-  
+
   // Load all assets with progress tracking
   await assetManager.loadAll((progress) => {
     progressBar.style.width = `${progress * 100}%`;
     loadingText.textContent = `Loading... ${Math.floor(progress * 100)}%`;
   });
-  
+
   // Hide loading screen and show menu
   loadingScreen.classList.add('hidden');
   document.getElementById('menu')?.classList.add('active');
-  
+
   // Create game instance
   const game = new Game({
     canvas: document.getElementById('game-canvas') as HTMLCanvasElement,
     assetManager,
     uiManager
   });
-  
+
   // Handle window resize
   window.addEventListener('resize', () => {
     game.resize();
   });
-  
+
   // Setup menu button event listeners
   document.getElementById('play-button')?.addEventListener('click', () => {
     document.getElementById('menu')?.classList.remove('active');
@@ -56,46 +56,46 @@ async function initGame() {
     document.getElementById('game-ui')?.classList.remove('hidden');
     game.start();
   });
-  
+
   document.getElementById('customize-button')?.addEventListener('click', () => {
     document.getElementById('menu')?.classList.remove('active');
     document.getElementById('customize-menu')?.classList.add('active');
   });
-  
+
   document.getElementById('settings-button')?.addEventListener('click', () => {
     document.getElementById('menu')?.classList.remove('active');
     document.getElementById('menu')?.classList.add('hidden');
     document.getElementById('settings-menu')?.classList.add('active');
   });
-  
+
   document.getElementById('leaderboard-button')?.addEventListener('click', () => {
     document.getElementById('menu')?.classList.remove('active');
     document.getElementById('leaderboard-screen')?.classList.add('active');
     // TODO: Fetch leaderboard data
   });
-  
+
   // Back buttons
   document.getElementById('back-from-customize')?.addEventListener('click', () => {
     document.getElementById('customize-menu')?.classList.remove('active');
     document.getElementById('menu')?.classList.add('active');
   });
-  
+
   document.getElementById('back-from-settings')?.addEventListener('click', () => {
     document.getElementById('settings-menu')?.classList.remove('active');
     document.getElementById('menu')?.classList.add('active');
   });
-  
+
   document.getElementById('back-from-leaderboard')?.addEventListener('click', () => {
     document.getElementById('leaderboard-screen')?.classList.remove('active');
     document.getElementById('menu')?.classList.add('active');
   });
-  
+
   // Game over buttons
   document.getElementById('respawn-button')?.addEventListener('click', () => {
     document.getElementById('game-over')?.classList.remove('active');
     game.respawnPlayer();
   });
-  
+
   document.getElementById('main-menu-button')?.addEventListener('click', () => {
     document.getElementById('game-over')?.classList.remove('active');
     document.getElementById('game-ui')?.classList.add('hidden');
@@ -108,19 +108,19 @@ async function initGame() {
 function createProceduralTextures() {
   // Create grass texture
   assetManager.createProceduralTexture('grass', 'grass');
-  
+
   // Create sand texture
   assetManager.createProceduralTexture('sand', 'sand');
-  
+
   // Create dirt texture
   assetManager.createProceduralTexture('dirt', 'dirt');
-  
+
   // Create metal texture
   assetManager.createProceduralTexture('metal', 'metal');
-  
+
   // Create rock texture
   assetManager.createProceduralTexture('rock', 'rock');
-  
+
   console.log('Procedural textures created successfully');
   return Promise.resolve();
 }

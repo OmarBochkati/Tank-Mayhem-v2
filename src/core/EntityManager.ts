@@ -72,4 +72,11 @@ export class EntityManager {
     
     this.entities.clear();
   }
+  
+  /**
+   * Get the total number of entities
+   */
+  public getEntityCount(): number {
+    return this.entities.size;
+  }
 }

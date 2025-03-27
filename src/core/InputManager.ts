@@ -13,10 +13,19 @@ interface InputState {
   toggleChat: boolean;
 }
 
+interface InputSettings {
+  invertMouseX: boolean;
+  invertMouseY: boolean;
+}
+
 export class InputManager extends EventEmitter {
   private canvas: HTMLCanvasElement;
   private inputState: InputState;
   private isPointerLocked: boolean = false;
+  private settings: InputSettings = {
+    invertMouseX: false,
+    invertMouseY: false
+  };
   
   constructor(canvas: HTMLCanvasElement) {
     super();
@@ -136,9 +145,13 @@ export class InputManager extends EventEmitter {
   
   private handleMouseMove(event: MouseEvent): void {
     if (this.isPointerLocked) {
+      // Apply mouse movement with inversion settings
+      const movementX = this.settings.invertMouseX ? -event.movementX : event.movementX;
+      const movementY = this.settings.invertMouseY ? -event.movementY : event.movementY;
+      
       // Update turret rotation based on mouse movement
-      this.inputState.turretX += event.movementX * 0.002;
-      this.inputState.turretY += event.movementY * 0.002;
+      this.inputState.turretX += movementX * 0.002;
+      this.inputState.turretY += movementY * 0.002;
       
       // Clamp vertical rotation to prevent flipping
       this.inputState.turretY = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, this.inputState.turretY));
@@ -235,9 +248,13 @@ export class InputManager extends EventEmitter {
         const deltaX = x - this.touchControls.lastAimPosition.x;
         const deltaY = y - this.touchControls.lastAimPosition.y;
         
+        // Apply touch movement with inversion settings
+        const adjustedDeltaX = this.settings.invertMouseX ? -deltaX : deltaX;
+        const adjustedDeltaY = this.settings.invertMouseY ? -deltaY : deltaY;
+        
         // Update turret rotation based on touch movement
-        this.inputState.turretX += deltaX * 0.01;
-        this.inputState.turretY += deltaY * 0.01;
+        this.inputState.turretX += adjustedDeltaX * 0.01;
+        this.inputState.turretY += adjustedDeltaY * 0.01;
         
         // Clamp vertical rotation to prevent flipping
         this.inputState.turretY = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, this.inputState.turretY));
@@ -288,5 +305,37 @@ export class InputManager extends EventEmitter {
       toggleCamera: false,
       toggleChat: false
     };
+  }
+  
+  /**
+   * Get the current input settings
+   */
+  public getSettings(): InputSettings {
+    return { ...this.settings };
+  }
+  
+  /**
+   * Update input settings
+   * @param settings New settings to apply
+   */
+  public updateSettings(settings: Partial<InputSettings>): void {
+    this.settings = { ...this.settings, ...settings };
+    this.emit('settingsChanged', this.getSettings());
+  }
+  
+  /**
+   * Toggle mouse X-axis inversion
+   */
+  public toggleInvertMouseX(): void {
+    this.settings.invertMouseX = !this.settings.invertMouseX;
+    this.emit('settingsChanged', this.getSettings());
+  }
+  
+  /**
+   * Toggle mouse Y-axis inversion
+   */
+  public toggleInvertMouseY(): void {
+    this.settings.invertMouseY = !this.settings.invertMouseY;
+    this.emit('settingsChanged', this.getSettings());
   }
 }

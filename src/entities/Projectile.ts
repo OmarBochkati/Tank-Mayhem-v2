@@ -152,6 +152,13 @@ export class Projectile extends Entity {
     return this.damage;
   }
   
+  public getPosition(): THREE.Vector3 {
+    if (this.object3D) {
+      return this.object3D.position.clone();
+    }
+    return this.position.clone();
+  }
+  
   public dispose(): void {
     super.dispose();
   }

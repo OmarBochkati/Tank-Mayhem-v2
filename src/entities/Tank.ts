@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Body, Vec3, Quaternion, Box, Cylinder, Material } from 'cannon-es';
+import { Body, Vec3, Quaternion, Box, Cylinder, Sphere, Material } from 'cannon-es';
 import { Entity } from './Entity';
 import { AssetManager } from '../core/AssetManager';
 
@@ -175,7 +175,7 @@ export class Tank extends Entity {
   private createPhysicsBody(): void {
     // Create tank physics body with increased mass to prevent sinking
     const body = new Body({
-      mass: 1500, // Increased mass for better stability
+      mass: 2000, // Further increased mass for better stability
       position: new Vec3(this.position.x, this.position.y, this.position.z),
       quaternion: new Quaternion().setFromEuler(
         this.rotation.x,
@@ -184,19 +184,42 @@ export class Tank extends Entity {
         'XYZ'
       ),
       material: this.material,
-      linearDamping: 0.4, // Add damping to reduce bouncing
-      angularDamping: 0.6, // Add angular damping to reduce tipping
+      linearDamping: 0.8, // Increased damping to reduce bouncing
+      angularDamping: 0.9, // Increased angular damping to reduce tipping
       fixedRotation: false, // Allow rotation but control it
-      allowSleep: false // Don't let the tank "sleep" in the physics simulation
+      allowSleep: false, // Don't let the tank "sleep" in the physics simulation
+      collisionFilterGroup: 1, // Tank collision group
+      collisionFilterMask: 255, // Collide with everything
+      sleepSpeedLimit: 0.1, // Lower sleep speed limit (won't actually sleep due to allowSleep: false)
+      sleepTimeLimit: 1 // Lower sleep time limit
     });
     
-    // Add tank shape with adjusted dimensions
-    const tankShape = new Box(new Vec3(1.5, 0.5, 2));
+    // Create a wider, flatter base for better stability
+    const tankShape = new Box(new Vec3(2.0, 0.4, 2.5));
     body.addShape(tankShape, new Vec3(0, 0, 0));
     
     // Add turret shape
     const turretShape = new Box(new Vec3(1, 0.4, 1.5));
     body.addShape(turretShape, new Vec3(0, 1, 0));
+    
+    // Add more contact points at the bottom to create a more stable base
+    // Use smaller spheres for better contact
+    const sphereRadius = 0.15;
+    
+    // Corner spheres
+    body.addShape(new Sphere(sphereRadius), new Vec3(1.8, -0.4, 2.3)); // Front right
+    body.addShape(new Sphere(sphereRadius), new Vec3(-1.8, -0.4, 2.3)); // Front left
+    body.addShape(new Sphere(sphereRadius), new Vec3(1.8, -0.4, -2.3)); // Back right
+    body.addShape(new Sphere(sphereRadius), new Vec3(-1.8, -0.4, -2.3)); // Back left
+    
+    // Additional contact points along the bottom edges
+    body.addShape(new Sphere(sphereRadius), new Vec3(1.8, -0.4, 0)); // Middle right
+    body.addShape(new Sphere(sphereRadius), new Vec3(-1.8, -0.4, 0)); // Middle left
+    body.addShape(new Sphere(sphereRadius), new Vec3(0, -0.4, 2.3)); // Middle front
+    body.addShape(new Sphere(sphereRadius), new Vec3(0, -0.4, -2.3)); // Middle back
+    
+    // Center contact point
+    body.addShape(new Sphere(sphereRadius), new Vec3(0, -0.4, 0)); // Center bottom
     
     // Set user data
     body.userData = {
@@ -209,16 +232,32 @@ export class Tank extends Entity {
       // Check if collision is with ground
       if (event.body.userData?.type === 'ground') {
         this.isGrounded = true;
-        this.lastGroundY = event.contact.bi.position.y;
         
-        // Apply upward force to counteract sinking if needed
-        if (body.position.y < this.lastGroundY + 0.5) {
-          const sinkDepth = (this.lastGroundY + 0.5) - body.position.y;
+        // Store the highest ground point for better stability
+        const contactPoint = event.contact.bi.position.y + event.contact.bi.shapes[0].boundingSphereRadius;
+        if (contactPoint > this.lastGroundY) {
+          this.lastGroundY = contactPoint;
+        }
+        
+        // Only apply a small corrective force if severely sinking
+        if (body.position.y < this.lastGroundY - 0.5) {
+          const sinkDepth = (this.lastGroundY - 0.5) - body.position.y;
           body.applyLocalImpulse(
             new Vec3(0, sinkDepth * body.mass * 0.1, 0),
             new Vec3(0, 0, 0)
           );
         }
+        
+        // Completely cancel downward velocity when in contact with ground
+        if (body.velocity.y < 0) {
+          body.velocity.y = 0;
+        }
+        
+        // Apply a small downward force to ensure the tank stays on the ground
+        body.applyLocalForce(
+          new Vec3(0, body.mass * 9.82 * -0.05, 0), // 5% additional gravity
+          new Vec3(0, 0, 0)
+        );
       }
     });
     
@@ -240,16 +279,35 @@ export class Tank extends Entity {
         // Reset grounded flag each frame (will be set again on collision)
         this.isGrounded = false;
         
-        // Apply a small constant upward force to prevent sinking
+        // Apply a small downward force to ensure proper ground contact
         this.physicsBody.applyLocalForce(
-          new Vec3(0, this.physicsBody.mass * 9.82 * 1.02, 0), // Slightly more than gravity
+          new Vec3(0, this.physicsBody.mass * 9.82 * -0.05, 0), // 5% additional gravity
           new Vec3(0, 0, 0)
         );
         
-        // Limit vertical velocity to prevent excessive bouncing
-        if (this.physicsBody.velocity.y < -5) {
-          this.physicsBody.velocity.y = -5;
+        // Completely stop vertical velocity if it's negative (falling)
+        if (this.physicsBody.velocity.y < 0) {
+          this.physicsBody.velocity.y = 0;
         }
+        
+        // No need for additional impulses that might cause instability
+      } else {
+        // If not grounded, check if we're falling too fast
+        if (this.physicsBody.velocity.y < -10) {
+          this.physicsBody.velocity.y = -10; // Terminal velocity
+        }
+        
+        // Check if tank has fallen below a certain threshold
+        if (this.physicsBody.position.y < -20) {
+          // Reset position to above ground
+          this.reset(new THREE.Vector3(this.physicsBody.position.x, 5, this.physicsBody.position.z));
+        }
+        
+        // Apply a small additional downward force when not grounded
+        this.physicsBody.applyLocalForce(
+          new Vec3(0, -this.physicsBody.mass * 9.82 * 0.2, 0), // 20% additional gravity
+          new Vec3(0, 0, 0)
+        );
       }
     }
     
@@ -271,11 +329,11 @@ export class Tank extends Entity {
     // Get current velocity
     const velocity = this.physicsBody.velocity;
     
-    // Get forward direction
+    // Get forward direction - positive Z is forward
     const forward = new THREE.Vector3(0, 0, 1);
     forward.applyQuaternion(this.object3D.quaternion);
     
-    // Get right direction
+    // Get right direction - positive X is right
     const right = new THREE.Vector3(1, 0, 0);
     right.applyQuaternion(this.object3D.quaternion);
     
@@ -503,11 +561,13 @@ export class Tank extends Entity {
   
   public getTurretDirection(): THREE.Vector3 {
     if (this.tankTurret) {
+      // Use positive Z direction
       const direction = new THREE.Vector3(0, 0, 1);
       direction.applyQuaternion(this.tankTurret.getWorldQuaternion(new THREE.Quaternion()));
       return direction.normalize();
     }
     
+    // Use positive Z direction
     const direction = new THREE.Vector3(0, 0, 1);
     if (this.object3D) {
       direction.applyQuaternion(this.object3D.quaternion);
