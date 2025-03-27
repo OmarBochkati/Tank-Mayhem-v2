@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Open World MMO Tank Mayhem</title>
+  </head>
+  <body>
+    <div id="loading-screen">
+      <div class="loading-container">
+        <h1>TANK MAYHEM</h1>
+        <div class="progress-bar">
+          <div class="progress-fill"></div>
+        </div>
+        <p class="loading-text">Loading...</p>
+      </div>
+    </div>
+    
+    <div id="game-ui" class="hidden">
+      <div class="hud">
+        <div class="health-bar">
+          <div class="health-fill"></div>
+          <span class="health-text">100</span>
+        </div>
+        <div class="ammo-counter">
+          <span class="ammo-count">5</span>
+          <span class="ammo-max">/5</span>
+        </div>
+        <div class="reload-indicator hidden">RELOADING</div>
+        <div class="mini-map">
+          <!-- Mini-map will be rendered here -->
+        </div>
+      </div>
+      <div class="crosshair"></div>
+      <div class="kill-feed"></div>
+      <div class="chat-container hidden">
+        <div class="chat-messages"></div>
+        <input type="text" class="chat-input" placeholder="Type message..." />
+      </div>
+    </div>
+    
+    <div id="menu" class="active">
+      <div class="menu-container">
+        <h1>TANK MAYHEM</h1>
+        <div class="menu-options">
+          <button id="play-button" class="menu-button">PLAY</button>
+          <button id="customize-button" class="menu-button">CUSTOMIZE</button>
+          <button id="settings-button" class="menu-button">SETTINGS</button>
+          <button id="leaderboard-button" class="menu-button">LEADERBOARD</button>
+        </div>
+      </div>
+    </div>
+    
+    <div id="customize-menu" class="hidden">
+      <div class="customize-container">
+        <h2>CUSTOMIZE YOUR TANK</h2>
+        <div class="tank-preview"></div>
+        <div class="customization-options">
+          <div class="option-group">
+            <h3>Tank Body</h3>
+            <div class="color-options">
+              <!-- Color options will be generated here -->
+            </div>
+          </div>
+          <div class="option-group">
+            <h3>Tank Turret</h3>
+            <div class="model-options">
+              <!-- Model options will be generated here -->
+            </div>
+          </div>
+        </div>
+        <button id="back-from-customize" class="menu-button">BACK</button>
+      </div>
+    </div>
+    
+    <div id="settings-menu" class="hidden">
+      <div class="settings-container">
+        <h2>SETTINGS</h2>
+        <div class="settings-options">
+          <div class="setting">
+            <label for="graphics-quality">Graphics Quality</label>
+            <select id="graphics-quality">
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+          <div class="setting">
+            <label for="sound-volume">Sound Volume</label>
+            <input type="range" id="sound-volume" min="0" max="100" value="70">
+          </div>
+          <div class="setting">
+            <label for="music-volume">Music Volume</label>
+            <input type="range" id="music-volume" min="0" max="100" value="50">
+          </div>
+          <div class="setting">
+            <label for="camera-mode">Default Camera</label>
+            <select id="camera-mode">
+              <option value="first-person">First Person</option>
+              <option value="third-person">Third Person</option>
+            </select>
+          </div>
+        </div>
+        <button id="back-from-settings" class="menu-button">BACK</button>
+      </div>
+    </div>
+    
+    <div id="leaderboard-screen" class="hidden">
+      <div class="leaderboard-container">
+        <h2>GLOBAL LEADERBOARD</h2>
+        <div class="leaderboard-entries">
+          <!-- Leaderboard entries will be generated here -->
+        </div>
+        <button id="back-from-leaderboard" class="menu-button">BACK</button>
+      </div>
+    </div>
+    
+    <div id="game-over" class="hidden">
+      <div class="game-over-container">
+        <h2>GAME OVER</h2>
+        <div class="stats">
+          <p>Kills: <span id="kills-count">0</span></p>
+          <p>Damage Dealt: <span id="damage-dealt">0</span></p>
+          <p>Survival Time: <span id="survival-time">0:00</span></p>
+        </div>
+        <button id="respawn-button" class="menu-button">RESPAWN</button>
+        <button id="main-menu-button" class="menu-button">MAIN MENU</button>
+      </div>
+    </div>
+    
+    <canvas id="game-canvas"></canvas>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
